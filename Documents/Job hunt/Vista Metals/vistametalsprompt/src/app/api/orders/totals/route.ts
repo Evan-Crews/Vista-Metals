@@ -2,19 +2,19 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
-
 const prisma = new PrismaClient();
-
+// Fetch all orders with their line items
 export async function GET() {
   try {
     const orders = await prisma.order.findMany({
-      select: {
-        orderNumber: true,
-        orderTotal: true,
+      include: {
+        lineItems: true, // Include associated line items
       },
     });
+
     return NextResponse.json(orders);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch order totals", details: error.message }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
 }
