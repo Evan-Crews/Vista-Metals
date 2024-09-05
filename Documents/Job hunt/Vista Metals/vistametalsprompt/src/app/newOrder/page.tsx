@@ -1,35 +1,53 @@
-"use client"
-import React, { useEffect , useState } from 'react';
+"use client";
+import React from 'react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import OrderGrid from '../components/OrderGrid';
 
+interface LineItem {
+  lineNumber: number;
+  itemName: string;
+  quantity: number;
+  unitPrice: number;
+  requestedDate: string;
+}
+
+interface FormValues {
+  orderNumber: string;
+  customerName: string;
+  contact: string;
+  status: string;
+  orderTotal: number;
+  lineItems: LineItem[];
+}
+
 const NewOrder = () => {
-  const [orderNumber, setOrderNumber] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [contact, setContact] = useState('');
-  const [status, setStatus] = useState('');
-  const [orderTotal, setOrderTotal] = useState(0);
-  const [lineItems, setLineItems] = useState([{ lineNumber: 1, itemName: '', quantity: 0, unitPrice: 0, requestedDate: '' }]);
+  const { control, handleSubmit, register } = useForm<FormValues>({
+    defaultValues: {
+      lineItems: [{ lineNumber: 1, itemName: '', quantity: 0, unitPrice: 0, requestedDate: '' }],
+    },
+  });
 
-  const handleLineItemChange = (index: number, field: string, value: any) => {
-    const updatedLineItems = [...lineItems];
-    updatedLineItems[index] = { ...updatedLineItems[index], [field]: value };
-    setLineItems(updatedLineItems);
-  };
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'lineItems',
+  });
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
+  const onSubmit = async (data: FormValues) => {
     try {
+      const orderTotal = parseFloat(data.orderTotal.toString());
+      const lineItems = data.lineItems.map(item => ({
+        ...item,
+        quantity: parseInt(item.quantity.toString(), 10), // Convert quantity to integer
+        unitPrice: parseFloat(item.unitPrice.toString()), // Convert unitPrice to float
+      }));
+
       const response = await fetch('/api/orders/newOrderRoute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          orderNumber,
-          customerName,
-          contact,
-          status,
+          ...data,
           orderTotal,
           lineItems,
         }),
@@ -38,7 +56,6 @@ const NewOrder = () => {
       const result = await response.json();
       if (response.ok) {
         alert('Order created successfully!');
-        // Optionally, you can reset the form here
       } else {
         alert('Error creating order: ' + result.error);
       }
@@ -51,70 +68,109 @@ const NewOrder = () => {
   return (
     <div>
       <h1>Create New Order</h1>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <div>
           <label>Order Number:</label>
-          <input type="text" value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} required />
+          <input {...register('orderNumber', { required: true })} />
         </div>
         <div>
           <label>Customer Name:</label>
-          <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
+          <input {...register('customerName', { required: true })} />
         </div>
         <div>
           <label>Contact:</label>
-          <input type="text" value={contact} onChange={(e) => setContact(e.target.value)} required />
+          <input {...register('contact', { required: true })} />
         </div>
         <div>
           <label>Status:</label>
-          <input type="text" value={status} onChange={(e) => setStatus(e.target.value)} required />
+          <input {...register('status', { required: true })} />
         </div>
         <div>
           <label>Order Total (USD):</label>
-          <input type="number" value={orderTotal} onChange={(e) => setOrderTotal(Number(e.target.value))} required />
+          <Controller
+            name="orderTotal"
+            control={control}
+            render={({ field }) => (
+              <input
+                type="number"
+                step="0.01" // Allows for decimal values
+                {...field}
+                onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                value={field.value || ''} // Ensure the field value is not undefined
+              />
+            )}
+          />
         </div>
         <div>
           <h2>Line Items</h2>
-          {lineItems.map((item, index) => (
-            <div key={index}>
+          {fields.map((item, index) => (
+            <div key={item.id}>
               <h3>Line Item {index + 1}</h3>
               <div>
                 <label>Item Name:</label>
-                <input
-                  type="text"
-                  value={item.itemName}
-                  onChange={(e) => handleLineItemChange(index, 'itemName', e.target.value)}
+                <Controller
+                  name={`lineItems.${index}.itemName`}
+                  control={control}
+                  render={({ field }) => <input {...field} />}
                 />
               </div>
               <div>
                 <label>Quantity:</label>
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => handleLineItemChange(index, 'quantity', Number(e.target.value))}
+                <Controller
+                  name={`lineItems.${index}.quantity`}
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      type="number"
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                      value={field.value || ''} // Ensure the field value is not undefined
+                    />
+                  )}
                 />
               </div>
               <div>
                 <label>Unit Price:</label>
-                <input
-                  type="number"
-                  value={item.unitPrice}
-                  onChange={(e) => handleLineItemChange(index, 'unitPrice', Number(e.target.value))}
+                <Controller
+                  name={`lineItems.${index}.unitPrice`}
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      type="number"
+                      step="0.01" // Allows for decimal values
+                      {...field}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                      value={field.value || ''} // Ensure the field value is not undefined
+                    />
+                  )}
                 />
               </div>
               <div>
-              <label>Requested Date:</label>
-                <input
-                  type="date"
-                  value={item.requestedDate.split('T')[0]} // Extract the date part from ISO string
-                  onChange={(e) => {
-                    const date = new Date(e.target.value);
-                    handleLineItemChange(index, 'requestedDate', date.toISOString());
-                  }}
+                <label>Requested Date:</label>
+                <Controller
+                  name={`lineItems.${index}.requestedDate`}
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      type="date"
+                      {...field}
+                      onChange={(e) => {
+                        const date = new Date(e.target.value);
+                        field.onChange(date.toISOString());
+                      }}
+                      value={field.value ? field.value.split('T')[0] : ''}
+                    />
+                  )}
                 />
               </div>
+              <button type="button" onClick={() => remove(index)}>
+                Remove Line Item
+              </button>
             </div>
           ))}
-          {/* You can add functionality to dynamically add/remove line items */}
+          <button type="button" onClick={() => append({ lineNumber: fields.length + 1, itemName: '', quantity: 0, unitPrice: 0, requestedDate: '' })}>
+            Add Line Item
+          </button>
         </div>
         <button type="submit">Submit Order</button>
       </form>
