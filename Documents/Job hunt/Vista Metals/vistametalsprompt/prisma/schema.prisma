@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Order {
+  id           Int         @id @default(autoincrement()) // Primary key
+  orderNumber  String      @unique                      // Unique order number
+  customerName String                                     // Name of the customer
+  contact      String                                     // Contact information
+  status       String                                     // Status of the order (e.g., pending, shipped)
+  orderTotal   Float                                      // Total amount in USD
+  createdAt    DateTime    @default(now())                // Timestamp for order creation
+  lineItems    LineItem[]                                // One-to-many relationship with LineItem
+}
+
+model LineItem {
+  id            Int      @id @default(autoincrement()) // Primary key
+  lineNumber    Int                                       // Line number within the order
+  itemName      String                                    // Name of the item
+  quantity           Int                                       // Quantity of the item
+  unitPrice     Float                                     // Unit price of the item
+  requestedDate DateTime                                  // Requested date for the item
+  orderId       Int                                       // Foreign key to the Order
+  order         Order    @relation(fields: [orderId], references: [id]) // Relation to Order
+  @@unique([orderId, lineNumber])                        // Unique constraint on orderId and lineNumber
+}
