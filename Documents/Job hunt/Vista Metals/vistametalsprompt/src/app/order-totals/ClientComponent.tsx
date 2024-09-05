@@ -29,7 +29,7 @@ export default function HomePage() {
   }
 
   return (
-    <div>
+    <div className="order_num_component">
       <h2>Total Number of Orders</h2>
       <p>{orderCount !== null ? orderCount : 'No orders found.'}</p>
     </div>
